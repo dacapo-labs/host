@@ -1,0 +1,17 @@
+# Copy this file to terraform.tfvars and fill in your values
+# cp terraform.tfvars.example terraform.tfvars
+
+# Required: Your SSH public key
+ssh_public_key = "ssh-ed25519 AAAA..."
+
+# Recommended: Restrict SSH to your IP only
+# Find your IP: curl ifconfig.me
+allowed_ssh_cidrs = ["YOUR.IP.ADDRESS/32"]
+
+# Optional overrides
+# aws_region              = "us-east-1"
+# instance_type           = "m7a.xlarge"
+# volume_size             = 100
+# volume_throughput       = 250
+# hostname                = "aws-dev-box"
+# snapshot_retention_days = 7
