@@ -90,9 +90,22 @@ notification_emails = ["your-email@example.com"]
 #    - Type: Login (or Secure Note)
 #    - Custom field: "key_b64" = (base64-encoded git-crypt key)
 #
+# 8. devbox/identity
+#    - Type: Secure Note
+#    - Custom fields for git identity:
+#      - "git_name_home" = (your name for personal repos)
+#      - "git_email_home" = (your email for personal repos)
+#      - "git_name_work" = (your name for work repos)
+#      - "git_email_work" = (your email for work repos)
+#    - Custom fields for AWS SSO:
+#      - "aws_account_id" = (AWS account ID)
+#      - "aws_sso_start_url" = (SSO start URL)
+#      - "aws_sso_region" = (SSO region, e.g., us-east-1)
+#      - "aws_role_name" = (IAM role name, e.g., AdministratorAccess)
+#
 # OPTIONAL (for Google email + calendar):
 #
-# 8. devbox/gmail-oauth
+# 9. devbox/gmail-oauth
 #    - Type: Login
 #    - Username: your.email@gmail.com
 #    - Custom field: "client_id" = (Google OAuth client ID)
@@ -109,7 +122,7 @@ notification_emails = ["your-email@example.com"]
 #
 # OPTIONAL (for MS365 email + calendar):
 #
-# 9. devbox/ms365-oauth
+# 10. devbox/ms365-oauth
 #    - Type: Login
 #    - Username: your.email@company.com
 #    - Custom field: "client_id" = (Azure AD application client ID)
