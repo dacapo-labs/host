@@ -2,18 +2,28 @@
 # Data Sources
 # -----------------------------------------------------------------------------
 
+locals {
+  # Map architecture to Ubuntu AMI naming convention
+  ami_arch = var.architecture == "arm64" ? "arm64" : "amd64"
+}
+
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"] # Canonical
 
   filter {
     name   = "name"
-    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*"]
+    values = ["ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-${local.ami_arch}-server-*"]
   }
 
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = [var.architecture]
   }
 }
 
@@ -151,6 +161,7 @@ resource "aws_instance" "devbox" {
     tailscale_auth_key  = data.bitwarden_item_login.tailscale.password
     tailscale_api_key   = data.bitwarden_item_login.tailscale_api.password
     tailscale_hostname  = var.tailscale_hostname
+    architecture        = var.architecture
   })
 
   # Don't recreate instance if user-data changes

@@ -4,10 +4,21 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "instance_type" {
-  description = "EC2 instance type - m7a.xlarge recommended for reliable dev work"
+variable "architecture" {
+  description = "CPU architecture: arm64 (Graviton, recommended) or x86_64"
   type        = string
-  default     = "m7a.xlarge"
+  default     = "arm64"
+
+  validation {
+    condition     = contains(["arm64", "x86_64"], var.architecture)
+    error_message = "Architecture must be 'arm64' or 'x86_64'."
+  }
+}
+
+variable "instance_type" {
+  description = "EC2 instance type - m7g.xlarge (Graviton) recommended for best price/performance"
+  type        = string
+  default     = "m7g.xlarge"
 }
 
 variable "volume_size" {

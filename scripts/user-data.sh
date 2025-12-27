@@ -6,6 +6,23 @@ exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&
 
 echo "=== Starting devbox setup ==="
 
+# Architecture detection (from Terraform variable)
+ARCH="${architecture}"
+echo "Architecture: $ARCH"
+
+# Map architecture to various naming conventions used by different tools
+if [ "$ARCH" = "arm64" ]; then
+    AWS_ARCH="aarch64"
+    LAZYGIT_ARCH="arm64"
+    LAZYDOCKER_ARCH="arm64"
+    HIMALAYA_ARCH="aarch64-linux"
+else
+    AWS_ARCH="x86_64"
+    LAZYGIT_ARCH="x86_64"
+    LAZYDOCKER_ARCH="x86_64"
+    HIMALAYA_ARCH="x86_64-linux"
+fi
+
 # 1. System update and core tools
 apt-get update && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
 apt-get install -y zsh git git-crypt curl wget unzip jq htop tmux ripgrep fd-find bat ncdu \
@@ -34,7 +51,7 @@ done
 tailscale up --auth-key=${tailscale_auth_key} --hostname=${tailscale_hostname} --ssh
 
 # 4. AWS CLI
-curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-$${AWS_ARCH}.zip" -o /tmp/awscliv2.zip
 unzip -q /tmp/awscliv2.zip -d /tmp && /tmp/aws/install && rm -rf /tmp/aws /tmp/awscliv2.zip
 
 # 5. GitHub CLI
@@ -58,13 +75,13 @@ npm install -g tldr @anthropic-ai/claude-code @bitwarden/cli @pnp/cli-microsoft3
 
 # 9. Modern CLI tools
 LAZYGIT_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazygit/releases/latest" | jq -r '.tag_name' | sed 's/v//')
-curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/v$${LAZYGIT_VERSION}/lazygit_$${LAZYGIT_VERSION}_Linux_x86_64.tar.gz" | tar xz -C /usr/local/bin
+curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/v$${LAZYGIT_VERSION}/lazygit_$${LAZYGIT_VERSION}_Linux_$${LAZYGIT_ARCH}.tar.gz" | tar xz -C /usr/local/bin
 LAZYDOCKER_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazydocker/releases/latest" | jq -r '.tag_name' | sed 's/v//')
-curl -fsSL "https://github.com/jesseduffield/lazydocker/releases/download/v$${LAZYDOCKER_VERSION}/lazydocker_$${LAZYDOCKER_VERSION}_Linux_x86_64.tar.gz" | tar xz -C /usr/local/bin
+curl -fsSL "https://github.com/jesseduffield/lazydocker/releases/download/v$${LAZYDOCKER_VERSION}/lazydocker_$${LAZYDOCKER_VERSION}_Linux_$${LAZYDOCKER_ARCH}.tar.gz" | tar xz -C /usr/local/bin
 curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh && mv /root/.local/bin/zoxide /usr/local/bin/
 curl https://mise.run | sh && mv /root/.local/bin/mise /usr/local/bin/
 HIMALAYA_VERSION=$(curl -s "https://api.github.com/repos/pimalaya/himalaya/releases/latest" | jq -r '.tag_name' | sed 's/v//')
-curl -fsSL "https://github.com/pimalaya/himalaya/releases/download/v$${HIMALAYA_VERSION}/himalaya.x86_64-unknown-linux-musl.tar.gz" | tar xz -C /usr/local/bin
+curl -fsSL "https://github.com/pimalaya/himalaya/releases/download/v$${HIMALAYA_VERSION}/himalaya.$${HIMALAYA_ARCH}.tgz" | tar xz -C /usr/local/bin
 
 # 10. Cloud CLIs
 curl -sL https://aka.ms/InstallAzureCLIDeb | bash

@@ -17,8 +17,17 @@ notification_emails = ["your-email@example.com"]
 # Instance Configuration (all optional - sensible defaults provided)
 # =============================================================================
 
+# Architecture: arm64 (Graviton, default) or x86_64
+# Graviton offers ~20% better price/performance and often better spot availability
+# architecture = "arm64"
+
+# Instance type recommendations:
+#   ARM (Graviton):  m7g.xlarge (default), c7g.xlarge (compute), r7g.xlarge (memory)
+#   x86_64 (AMD):    m7a.xlarge, c7a.xlarge, r7a.xlarge
+#   x86_64 (Intel):  m7i.xlarge, c7i.xlarge, r7i.xlarge
+# instance_type = "m7g.xlarge"
+
 # aws_region              = "us-east-1"
-# instance_type           = "m7a.xlarge"
 # volume_size             = 100
 # volume_throughput       = 250
 # hostname                = "aws-dev-box"
