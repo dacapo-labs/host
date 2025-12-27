@@ -13,6 +13,12 @@ variable "instance_type" {
 variable "volume_size" {
   description = "Root EBS volume size in GB"
   type        = number
+  default     = 50
+}
+
+variable "data_volume_size" {
+  description = "Data EBS volume size in GB (LUKS encrypted)"
+  type        = number
   default     = 100
 }
 
@@ -88,11 +94,9 @@ variable "enable_schedule" {
   default     = true
 }
 
-variable "tailscale_auth_key" {
-  description = "Tailscale auth key for secure access (get from https://login.tailscale.com/admin/settings/keys)"
-  type        = string
-  sensitive   = true
-}
+# =============================================================================
+# TAILSCALE
+# =============================================================================
 
 variable "tailscale_hostname" {
   description = "Hostname for this machine in Tailscale"
@@ -100,76 +104,24 @@ variable "tailscale_hostname" {
   default     = "devbox"
 }
 
-variable "git_crypt_key_b64" {
-  description = "Base64-encoded git-crypt key for claude-sessions-config repo"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "github_ssh_key_home_b64" {
-  description = "Base64-encoded SSH private key for GitHub (home account - sethdf)"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-variable "github_ssh_key_work_b64" {
-  description = "Base64-encoded SSH private key for GitHub (work account - sfoleybuxton)"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
-
-# AWS SSO Configuration for home account (Bedrock access)
-variable "aws_sso_start_url" {
-  description = "AWS SSO start URL for home account"
-  type        = string
-  default     = ""
-}
-
-variable "aws_sso_account_id" {
-  description = "AWS account ID for home account"
-  type        = string
-  default     = ""
-}
-
-variable "aws_sso_role_name" {
-  description = "AWS SSO role name for home account"
-  type        = string
-  default     = "AdministratorAccess"
-}
-
-# Git identity for home account
-variable "git_user_name_home" {
-  description = "Git user.name for home account"
-  type        = string
-  default     = "Seth"
-}
-
-variable "git_user_email_home" {
-  description = "Git user.email for home account"
-  type        = string
-  default     = "your-email@example.com"
-}
-
-# Git identity for work account
-variable "git_user_name_work" {
-  description = "Git user.name for work account"
-  type        = string
-  default     = "Your Name"
-}
-
-variable "git_user_email_work" {
-  description = "Git user.email for work account"
-  type        = string
-  default     = "your-work-email@example.com"
-}
-
-# GitHub CLI authentication
-variable "github_token" {
-  description = "GitHub personal access token for gh CLI authentication"
-  type        = string
-  sensitive   = true
-  default     = ""
-}
+# =============================================================================
+# ALL SECRETS FROM BITWARDEN
+# =============================================================================
+#
+# Terraform pulls secrets via Bitwarden provider (see bitwarden.tf)
+# BW credentials stored in lifemaestro/secrets/ (gitignored):
+#   - bw-master, bw-client-id, bw-client-secret
+#
+# Required Bitwarden items:
+#   - devbox/tailscale-auth-key (password field) - used at terraform apply
+#   - devbox/luks-key           (password field) - LUKS encryption for data volume
+#   - devbox/github-ssh-home    (custom field: private_key)
+#   - devbox/github-ssh-work    (custom field: private_key)
+#   - devbox/github-token       (password field)
+#   - devbox/git-crypt-key      (custom field: key_b64)
+#
+# After first SSH login, run:
+#   source ~/bin/bw-unlock    # Unlock Bitwarden vault
+#   ~/bin/devbox-init         # Bootstrap remaining secrets
+#
+# =============================================================================

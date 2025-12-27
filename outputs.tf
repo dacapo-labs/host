@@ -45,3 +45,11 @@ output "pricing_estimate" {
   description = "Estimated hourly cost"
   value       = var.use_spot ? "~$0.06/hr (spot)" : "~$0.20/hr (on-demand)"
 }
+
+output "volumes" {
+  description = "EBS volumes"
+  value = {
+    root = "${var.volume_size}GB (OS, tools)"
+    data = "${var.data_volume_size}GB (LUKS encrypted /home)"
+  }
+}

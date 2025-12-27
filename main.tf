@@ -106,9 +106,9 @@ resource "aws_instance" "devbox" {
   subnet_id              = aws_subnet.devbox.id
   vpc_security_group_ids = [aws_security_group.devbox.id]
 
-  # Enable hibernation - saves RAM to EBS on hibernate
-  # Requires: encrypted root volume (done), volume size > RAM (100GB > 16GB)
-  hibernation = true
+  # Hibernation disabled - RAM dumps to root EBS would expose LUKS keys
+  # Trade-off: Lose running state on stop, but disk data stays secure
+  hibernation = false
 
   # Spot instance configuration (optional)
   dynamic "instance_market_options" {
@@ -116,7 +116,7 @@ resource "aws_instance" "devbox" {
     content {
       market_type = "spot"
       spot_options {
-        instance_interruption_behavior = "hibernate"
+        instance_interruption_behavior = "stop"
         spot_instance_type             = "persistent"
         max_price                      = var.spot_max_price != "" ? var.spot_max_price : null
       }
@@ -132,26 +132,24 @@ resource "aws_instance" "devbox" {
     encrypted             = true
 
     tags = {
-      Name = "devbox-root"
+      Name   = "devbox-root"
+      Backup = "daily"
     }
   }
 
+  # Require IMDSv2 for enhanced security
+  metadata_options {
+    http_tokens   = "required"  # Require IMDSv2 token
+    http_endpoint = "enabled"
+  }
+
+  # User data - Tailscale auth key from Bitwarden
+  # All other secrets bootstrapped from Bitwarden after first login
   user_data = templatefile("${path.module}/scripts/user-data.sh", {
-    hostname               = var.hostname
-    timezone               = var.schedule_timezone
-    tailscale_auth_key     = var.tailscale_auth_key
-    tailscale_hostname     = var.tailscale_hostname
-    git_crypt_key_b64      = var.git_crypt_key_b64
-    github_ssh_key_home_b64 = var.github_ssh_key_home_b64
-    github_ssh_key_work_b64 = var.github_ssh_key_work_b64
-    aws_sso_start_url      = var.aws_sso_start_url
-    aws_sso_account_id     = var.aws_sso_account_id
-    aws_sso_role_name      = var.aws_sso_role_name
-    git_user_name_home     = var.git_user_name_home
-    git_user_email_home    = var.git_user_email_home
-    git_user_name_work     = var.git_user_name_work
-    git_user_email_work    = var.git_user_email_work
-    github_token           = var.github_token
+    hostname           = var.hostname
+    timezone           = var.schedule_timezone
+    tailscale_auth_key = data.bitwarden_item_login.tailscale.password
+    tailscale_hostname = var.tailscale_hostname
   })
 
   # Don't recreate instance if user-data changes
@@ -162,6 +160,30 @@ resource "aws_instance" "devbox" {
   tags = {
     Name = var.hostname
   }
+}
+
+# -----------------------------------------------------------------------------
+# Data Volume (LUKS encrypted by user, not AWS)
+# -----------------------------------------------------------------------------
+
+resource "aws_ebs_volume" "data" {
+  availability_zone = data.aws_availability_zones.available.names[0]
+  size              = var.data_volume_size
+  type              = "gp3"
+  iops              = var.volume_iops
+  throughput        = var.volume_throughput
+  encrypted         = true # AWS encryption layer (LUKS adds user-controlled layer)
+
+  tags = {
+    Name   = "devbox-data"
+    Backup = "daily"
+  }
+}
+
+resource "aws_volume_attachment" "data" {
+  device_name = "/dev/sdf"
+  volume_id   = aws_ebs_volume.data.id
+  instance_id = aws_instance.devbox.id
 }
 
 # -----------------------------------------------------------------------------
@@ -220,7 +242,7 @@ resource "aws_dlm_lifecycle_policy" "devbox" {
     }
 
     target_tags = {
-      Name = "devbox-root"
+      Backup = "daily"
     }
   }
 
@@ -434,7 +456,7 @@ resource "aws_scheduler_schedule" "stop" {
 
     input = jsonencode({
       InstanceIds = [aws_instance.devbox.id]
-      Hibernate   = true
+      # Hibernate disabled for security - RAM would expose LUKS keys
     })
   }
 }

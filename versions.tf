@@ -6,6 +6,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    bitwarden = {
+      source  = "maxlaverse/bitwarden"
+      version = ">= 0.12.0"
+    }
   }
 }
 
