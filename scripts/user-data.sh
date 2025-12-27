@@ -215,8 +215,16 @@ fi
 
 echo "=== Setting up SSH keys ==="
 mkdir -p ~/.ssh && chmod 700 ~/.ssh
-bw get item "devbox/github-ssh-home" &>/dev/null && bw get item "devbox/github-ssh-home" | jq -r '.fields[]? | select(.name=="private_key") | .value' > ~/.ssh/id_ed25519_home && chmod 600 ~/.ssh/id_ed25519_home && echo "Home key installed"
-bw get item "devbox/github-ssh-work" &>/dev/null && bw get item "devbox/github-ssh-work" | jq -r '.fields[]? | select(.name=="private_key") | .value' > ~/.ssh/id_ed25519_work && chmod 600 ~/.ssh/id_ed25519_work && echo "Work key installed"
+if [[ ! -f ~/.ssh/id_ed25519_home ]]; then
+    bw get item "devbox/github-ssh-home" &>/dev/null && bw get item "devbox/github-ssh-home" | jq -r '.fields[]? | select(.name=="private_key") | .value' > ~/.ssh/id_ed25519_home && chmod 600 ~/.ssh/id_ed25519_home && echo "Home key installed"
+else
+    echo "Home key already exists"
+fi
+if [[ ! -f ~/.ssh/id_ed25519_work ]]; then
+    bw get item "devbox/github-ssh-work" &>/dev/null && bw get item "devbox/github-ssh-work" | jq -r '.fields[]? | select(.name=="private_key") | .value' > ~/.ssh/id_ed25519_work && chmod 600 ~/.ssh/id_ed25519_work && echo "Work key installed"
+else
+    echo "Work key already exists"
+fi
 [[ ! -f ~/.ssh/config ]] && cat > ~/.ssh/config <<'SSHCFG'
 Host github.com-home
     HostName github.com
@@ -230,27 +238,37 @@ Host github.com-work
     IdentitiesOnly yes
 SSHCFG
 chmod 600 ~/.ssh/config
-ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
+grep -q "github.com" ~/.ssh/known_hosts 2>/dev/null || ssh-keyscan github.com >> ~/.ssh/known_hosts 2>/dev/null
 
 echo "=== Setting up GitHub CLI ==="
 gh auth status &>/dev/null || { bw get item "devbox/github-token" &>/dev/null && bw get password "devbox/github-token" | gh auth login --with-token && gh config set git_protocol ssh; }
 
 echo "=== Setting up git identity ==="
 mkdir -p ~/.config/git
-cat > ~/.config/git/config-home <<'GH'
+if [[ ! -f ~/.config/git/config-home ]]; then
+    cat > ~/.config/git/config-home <<'GH'
 [user]
     name = Seth
     email = your-email@example.com
 [url "git@github.com-home:"]
     insteadOf = git@github.com:
 GH
-cat > ~/.config/git/config-work <<'GW'
+    echo "Git config-home created"
+else
+    echo "Git config-home already exists"
+fi
+if [[ ! -f ~/.config/git/config-work ]]; then
+    cat > ~/.config/git/config-work <<'GW'
 [user]
     name = Your Name
     email = your-work-email@example.com
 [url "git@github.com-work:"]
     insteadOf = git@github.com:
 GW
+    echo "Git config-work created"
+else
+    echo "Git config-work already exists"
+fi
 grep -q "claude-sessions/home" ~/.gitconfig 2>/dev/null || cat >> ~/.gitconfig <<'GINC'
 [includeIf "gitdir:~/claude-sessions/home/"]
     path = ~/.config/git/config-home
@@ -260,7 +278,8 @@ GINC
 
 echo "=== Setting up AWS config ==="
 mkdir -p ~/.aws
-cat > ~/.aws/config <<'AWSCFG'
+if [[ ! -f ~/.aws/config ]]; then
+    cat > ~/.aws/config <<'AWSCFG'
 [default]
 region = us-east-1
 [profile home]
@@ -273,6 +292,10 @@ sso_start_url = https://d-9067954177.awsapps.com/start
 sso_region = us-east-1
 sso_registration_scopes = sso:account:access
 AWSCFG
+    echo "AWS config created"
+else
+    echo "AWS config already exists"
+fi
 
 echo "=== Setting up claude-sessions ==="
 mkdir -p ~/claude-sessions/home ~/claude-sessions/work
