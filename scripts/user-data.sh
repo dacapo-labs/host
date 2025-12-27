@@ -156,8 +156,10 @@ if [[ -b "$DATA_DEV" ]]; then
 
     if ! sudo cryptsetup isLuks "$DATA_DEV" 2>/dev/null; then
         echo "Formatting $DATA_DEV with LUKS (first time setup)..."
-        echo "$LUKS_KEY" | sudo cryptsetup luksFormat --type luks2 "$DATA_DEV" -
-        echo "$LUKS_KEY" | sudo cryptsetup open "$DATA_DEV" "$DATA_MAPPER" -
+        # Wipe any existing signatures and format non-interactively
+        sudo wipefs -a "$DATA_DEV" 2>/dev/null || true
+        echo -n "$LUKS_KEY" | sudo cryptsetup luksFormat --type luks2 -q "$DATA_DEV" -
+        echo -n "$LUKS_KEY" | sudo cryptsetup open "$DATA_DEV" "$DATA_MAPPER" -
         sudo mkfs.ext4 -L data "/dev/mapper/$DATA_MAPPER"
         sudo mkdir -p "$DATA_MOUNT"
         sudo mount "/dev/mapper/$DATA_MAPPER" "$DATA_MOUNT"
@@ -168,9 +170,14 @@ if [[ -b "$DATA_DEV" ]]; then
     else
         if [[ ! -e "/dev/mapper/$DATA_MAPPER" ]]; then
             echo "Unlocking LUKS volume..."
-            echo "$LUKS_KEY" | sudo cryptsetup open "$DATA_DEV" "$DATA_MAPPER" -
+            echo -n "$LUKS_KEY" | sudo cryptsetup open "$DATA_DEV" "$DATA_MAPPER" -
         fi
         sudo mkdir -p "$DATA_MOUNT"
+        # Create filesystem if missing (e.g., manual LUKS format without mkfs)
+        if ! sudo blkid "/dev/mapper/$DATA_MAPPER" &>/dev/null; then
+            echo "Creating filesystem on LUKS volume..."
+            sudo mkfs.ext4 -L data "/dev/mapper/$DATA_MAPPER"
+        fi
         if ! mountpoint -q "$DATA_MOUNT"; then
             sudo mount "/dev/mapper/$DATA_MAPPER" "$DATA_MOUNT"
         fi
@@ -246,9 +253,15 @@ sso_registration_scopes = sso:account:access
 AWSCFG
 
 echo "=== Setting up claude-sessions ==="
-[[ ! -d ~/.config/claude-sessions ]] && [[ -f ~/.ssh/id_ed25519_home ]] && git clone git@github.com-home:YOUR_USERNAME/claude-sessions-config.git ~/.config/claude-sessions
-bw get item "devbox/git-crypt-key" &>/dev/null && cd ~/.config/claude-sessions && git-crypt unlock <(bw get item "devbox/git-crypt-key" | jq -r '.fields[]? | select(.name=="key_b64") | .value' | base64 -d) && cd -
 mkdir -p ~/claude-sessions/home ~/claude-sessions/work
+# Clone sessions config if repo exists (optional)
+if [[ ! -d ~/.config/claude-sessions ]] && [[ -f ~/.ssh/id_ed25519_home ]]; then
+    git clone git@github.com-home:YOUR_USERNAME/claude-sessions-config.git ~/.config/claude-sessions 2>/dev/null && \
+    bw get item "devbox/git-crypt-key" &>/dev/null && \
+    cd ~/.config/claude-sessions && \
+    git-crypt unlock <(bw get item "devbox/git-crypt-key" | jq -r '.fields[]? | select(.name=="key_b64") | .value' | base64 -d) 2>/dev/null && \
+    cd - || echo "claude-sessions-config not available (optional)"
+fi
 
 echo "=== Setting up LifeMaestro ==="
 if [[ ! -d ~/code/lifemaestro ]] && [[ -f ~/.ssh/id_ed25519_home ]]; then
