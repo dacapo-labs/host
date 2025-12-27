@@ -16,7 +16,7 @@ locals {
 }
 
 provider "bitwarden" {
-  email           = "your-email@example.com"
+  email           = var.bitwarden_email
   master_password = trimspace(file("${local.bw_secrets_path}/bw-master"))
   client_id       = trimspace(file("${local.bw_secrets_path}/bw-client-id"))
   client_secret   = trimspace(file("${local.bw_secrets_path}/bw-client-secret"))

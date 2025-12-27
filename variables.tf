@@ -106,6 +106,26 @@ variable "enable_schedule" {
 }
 
 # =============================================================================
+# BITWARDEN
+# =============================================================================
+
+variable "bitwarden_email" {
+  description = "Email address for Bitwarden account"
+  type        = string
+  # No default - must be provided in terraform.tfvars
+}
+
+# =============================================================================
+# GITHUB
+# =============================================================================
+
+variable "github_username" {
+  description = "GitHub username for cloning bootstrap scripts"
+  type        = string
+  # No default - must be provided in terraform.tfvars
+}
+
+# =============================================================================
 # TAILSCALE
 # =============================================================================
 

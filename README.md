@@ -50,7 +50,7 @@ You'll also need:
 ### First-Time Setup
 
 ```bash
-# 1. Clone and setup encryption
+# 1. Fork this repo, then clone your fork
 git clone https://github.com/YOUR_USERNAME/aws-devbox.git
 cd aws-devbox
 make setup
@@ -72,7 +72,7 @@ ssh devbox
 ### Recovering on a New Machine
 
 ```bash
-# 1. Clone repo
+# 1. Clone your fork
 git clone https://github.com/YOUR_USERNAME/aws-devbox.git
 cd aws-devbox
 
@@ -96,6 +96,8 @@ make apply
 
 | Variable | Default | Description |
 |----------|---------|-------------|
+| `bitwarden_email` | (required) | Email for Bitwarden account |
+| `github_username` | (required) | Your GitHub username (for script downloads) |
 | `aws_region` | us-east-1 | AWS region |
 | `instance_type` | m7a.xlarge | EC2 instance type |
 | `volume_size` | 100 | Root volume size (GB) |

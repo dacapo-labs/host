@@ -134,7 +134,7 @@ SPOTSERVICE
 systemctl daemon-reload && systemctl enable --now spot-watcher
 
 # 14. Download bootstrap scripts from GitHub
-SCRIPTS_BASE="https://raw.githubusercontent.com/YOUR_USERNAME/aws-devbox/master/scripts"
+SCRIPTS_BASE="https://raw.githubusercontent.com/${github_username}/aws-devbox/master/scripts"
 mkdir -p /home/ubuntu/bin
 curl -fsSL "$SCRIPTS_BASE/bw-unlock.sh" -o /home/ubuntu/bin/bw-unlock
 curl -fsSL "$SCRIPTS_BASE/devbox-init.sh" -o /home/ubuntu/bin/devbox-init

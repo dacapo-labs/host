@@ -162,6 +162,7 @@ resource "aws_instance" "devbox" {
     tailscale_api_key   = data.bitwarden_item_login.tailscale_api.password
     tailscale_hostname  = var.tailscale_hostname
     architecture        = var.architecture
+    github_username     = var.github_username
   })
 
   # Don't recreate instance if user-data changes

@@ -7,11 +7,17 @@
 #
 # =============================================================================
 
+# REQUIRED: Bitwarden account email
+bitwarden_email = "your-email@example.com"
+
+# REQUIRED: GitHub username (for downloading bootstrap scripts)
+github_username = "your-github-username"
+
 # Optional: Custom Tailscale hostname (default: devbox)
 # tailscale_hostname = "devbox"
 
 # Optional: Email notifications for spot interruptions
-notification_emails = ["your-email@example.com"]
+# notification_emails = ["your-email@example.com"]
 
 # =============================================================================
 # Instance Configuration (all optional - sensible defaults provided)
@@ -92,16 +98,21 @@ notification_emails = ["your-email@example.com"]
 #
 # 8. devbox/identity
 #    - Type: Secure Note
-#    - Custom fields for git identity:
+#    - Custom fields for git identity (REQUIRED):
 #      - "git_name_home" = (your name for personal repos)
 #      - "git_email_home" = (your email for personal repos)
+#      - "github_username" = (your GitHub username)
+#    - Custom fields for git identity (optional):
 #      - "git_name_work" = (your name for work repos)
 #      - "git_email_work" = (your email for work repos)
-#    - Custom fields for AWS SSO:
+#    - Custom fields for AWS SSO (optional):
 #      - "aws_account_id" = (AWS account ID)
 #      - "aws_sso_start_url" = (SSO start URL)
 #      - "aws_sso_region" = (SSO region, e.g., us-east-1)
 #      - "aws_role_name" = (IAM role name, e.g., AdministratorAccess)
+#    - Custom fields for repos to clone (optional):
+#      - "dotfiles_repo" = (e.g., "username/dotfiles" - cloned to ~/code/dotfiles)
+#      - "claude_sessions_repo" = (e.g., "username/claude-sessions-config")
 #
 # OPTIONAL (for Google email + calendar):
 #

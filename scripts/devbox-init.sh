@@ -83,18 +83,17 @@ gh auth status &>/dev/null || { bw get item "devbox/github-token" &>/dev/null &&
 echo "=== Setting up git identity ==="
 mkdir -p ~/.config/git
 
-IDENTITY=$(bw get item "devbox/identity" 2>/dev/null) || { echo "Warning: devbox/identity not found in Bitwarden"; IDENTITY=""; }
+IDENTITY=$(bw get item "devbox/identity" 2>/dev/null) || { echo "Error: devbox/identity not found in Bitwarden - create it with git_name_home, git_email_home, etc. fields"; exit 1; }
 
-if [[ -n "$IDENTITY" ]]; then
-    GIT_NAME_HOME=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="git_name_home") | .value // empty')
-    GIT_EMAIL_HOME=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="git_email_home") | .value // empty')
-    GIT_NAME_WORK=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="git_name_work") | .value // empty')
-    GIT_EMAIL_WORK=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="git_email_work") | .value // empty')
-else
-    GIT_NAME_HOME="Seth"
-    GIT_EMAIL_HOME="your-email@example.com"
-    GIT_NAME_WORK="Your Name"
-    GIT_EMAIL_WORK="your-work-email@example.com"
+GIT_NAME_HOME=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="git_name_home") | .value // empty')
+GIT_EMAIL_HOME=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="git_email_home") | .value // empty')
+GIT_NAME_WORK=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="git_name_work") | .value // empty')
+GIT_EMAIL_WORK=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="git_email_work") | .value // empty')
+GITHUB_USERNAME=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="github_username") | .value // empty')
+
+if [[ -z "$GIT_NAME_HOME" || -z "$GIT_EMAIL_HOME" ]]; then
+    echo "Error: devbox/identity missing required fields (git_name_home, git_email_home)"
+    exit 1
 fi
 
 if [[ ! -f ~/.config/git/config-home ]]; then
@@ -131,17 +130,10 @@ GINC
 echo "=== Setting up AWS config ==="
 mkdir -p ~/.aws
 
-if [[ -n "$IDENTITY" ]]; then
-    AWS_ACCOUNT_ID=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="aws_account_id") | .value // empty')
-    AWS_SSO_START_URL=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="aws_sso_start_url") | .value // empty')
-    AWS_SSO_REGION=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="aws_sso_region") | .value // empty')
-    AWS_ROLE_NAME=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="aws_role_name") | .value // empty')
-else
-    AWS_ACCOUNT_ID="000000000000"
-    AWS_SSO_START_URL="https://d-9067954177.awsapps.com/start"
-    AWS_SSO_REGION="us-east-1"
-    AWS_ROLE_NAME="AdministratorAccess"
-fi
+AWS_ACCOUNT_ID=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="aws_account_id") | .value // empty')
+AWS_SSO_START_URL=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="aws_sso_start_url") | .value // empty')
+AWS_SSO_REGION=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="aws_sso_region") | .value // empty')
+AWS_ROLE_NAME=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="aws_role_name") | .value // empty')
 
 if [[ ! -f ~/.aws/config ]]; then
     cat > ~/.aws/config <<AWSCFG
@@ -164,26 +156,32 @@ fi
 
 echo "=== Setting up claude-sessions ==="
 mkdir -p ~/claude-sessions/home ~/claude-sessions/work
-if [[ ! -d ~/.config/claude-sessions ]] && [[ -f ~/.ssh/id_ed25519_home ]]; then
-    git clone git@github.com-home:YOUR_USERNAME/claude-sessions-config.git ~/.config/claude-sessions 2>/dev/null && \
+CLAUDE_SESSIONS_REPO=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="claude_sessions_repo") | .value // empty')
+if [[ -n "$CLAUDE_SESSIONS_REPO" ]] && [[ ! -d ~/.config/claude-sessions ]] && [[ -f ~/.ssh/id_ed25519_home ]]; then
+    git clone "git@github.com-home:${CLAUDE_SESSIONS_REPO}.git" ~/.config/claude-sessions 2>/dev/null && \
     bw get item "devbox/git-crypt-key" &>/dev/null && \
     cd ~/.config/claude-sessions && \
     git-crypt unlock <(bw get item "devbox/git-crypt-key" | jq -r '.fields[]? | select(.name=="key_b64") | .value' | base64 -d) 2>/dev/null && \
     cd - || echo "claude-sessions-config not available (optional)"
+else
+    echo "claude-sessions repo not configured in devbox/identity (optional)"
 fi
 
-echo "=== Setting up LifeMaestro ==="
-if [[ ! -d ~/code/lifemaestro ]] && [[ -f ~/.ssh/id_ed25519_home ]]; then
+echo "=== Setting up dotfiles/config repo ==="
+DOTFILES_REPO=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="dotfiles_repo") | .value // empty')
+if [[ -n "$DOTFILES_REPO" ]] && [[ ! -d ~/code/dotfiles ]] && [[ -f ~/.ssh/id_ed25519_home ]]; then
     mkdir -p ~/code
-    git clone git@github.com-home:YOUR_USERNAME/dotfiles.git ~/code/lifemaestro
-    cd ~/code/lifemaestro && ./install.sh && cd -
-    if [[ -d ~/code/lifemaestro/.claude ]]; then
-        [[ -d ~/.claude && ! -L ~/.claude ]] && rm -rf ~/.claude
-        ln -sfn ~/code/lifemaestro/.claude ~/.claude
+    git clone "git@github.com-home:${DOTFILES_REPO}.git" ~/code/dotfiles
+    if [[ -f ~/code/dotfiles/install.sh ]]; then
+        cd ~/code/dotfiles && ./install.sh && cd -
     fi
-    echo "LifeMaestro installed"
+    if [[ -d ~/code/dotfiles/.claude ]]; then
+        [[ -d ~/.claude && ! -L ~/.claude ]] && rm -rf ~/.claude
+        ln -sfn ~/code/dotfiles/.claude ~/.claude
+    fi
+    echo "Dotfiles repo installed"
 else
-    echo "LifeMaestro already installed or SSH key missing"
+    echo "Dotfiles repo not configured in devbox/identity (optional)"
 fi
 
 echo "=== Setting up Himalaya (email) ==="
