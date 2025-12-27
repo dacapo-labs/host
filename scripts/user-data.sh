@@ -60,6 +60,8 @@ LAZYDOCKER_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazydoc
 curl -fsSL "https://github.com/jesseduffield/lazydocker/releases/download/v$${LAZYDOCKER_VERSION}/lazydocker_$${LAZYDOCKER_VERSION}_Linux_x86_64.tar.gz" | tar xz -C /usr/local/bin
 curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh && mv /root/.local/bin/zoxide /usr/local/bin/
 curl https://mise.run | sh && mv /root/.local/bin/mise /usr/local/bin/
+HIMALAYA_VERSION=$(curl -s "https://api.github.com/repos/pimalaya/himalaya/releases/latest" | jq -r '.tag_name' | sed 's/v//')
+curl -fsSL "https://github.com/pimalaya/himalaya/releases/download/v$${HIMALAYA_VERSION}/himalaya.x86_64-unknown-linux-musl.tar.gz" | tar xz -C /usr/local/bin
 
 # 10. Cloud CLIs
 curl -sL https://aka.ms/InstallAzureCLIDeb | bash
@@ -276,6 +278,53 @@ if [[ ! -d ~/code/lifemaestro ]] && [[ -f ~/.ssh/id_ed25519_home ]]; then
     echo "LifeMaestro installed"
 else
     echo "LifeMaestro already installed or SSH key missing"
+fi
+
+echo "=== Setting up Himalaya (email) ==="
+mkdir -p ~/.config/himalaya
+if [[ ! -f ~/.config/himalaya/config.toml ]] && bw get item "devbox/gmail-oauth" &>/dev/null; then
+    GMAIL_EMAIL=$(bw get item "devbox/gmail-oauth" | jq -r '.login.username // empty')
+    GMAIL_CLIENT_ID=$(bw get item "devbox/gmail-oauth" | jq -r '.fields[]? | select(.name=="client_id") | .value // empty')
+    GMAIL_CLIENT_SECRET=$(bw get item "devbox/gmail-oauth" | jq -r '.fields[]? | select(.name=="client_secret") | .value // empty')
+
+    if [[ -n "$GMAIL_EMAIL" && -n "$GMAIL_CLIENT_ID" && -n "$GMAIL_CLIENT_SECRET" ]]; then
+        cat > ~/.config/himalaya/config.toml <<HIMALAYA
+[accounts.gmail]
+default = true
+email = "$GMAIL_EMAIL"
+
+backend.type = "imap"
+backend.host = "imap.gmail.com"
+backend.port = 993
+backend.encryption = "tls"
+backend.login = "$GMAIL_EMAIL"
+backend.auth.type = "oauth2"
+backend.auth.client-id = "$GMAIL_CLIENT_ID"
+backend.auth.client-secret = "$GMAIL_CLIENT_SECRET"
+backend.auth.method = "redirect"
+backend.auth.auth-url = "https://accounts.google.com/o/oauth2/auth"
+backend.auth.token-url = "https://oauth2.googleapis.com/token"
+backend.auth.scopes = ["https://mail.google.com/"]
+
+sender.type = "smtp"
+sender.host = "smtp.gmail.com"
+sender.port = 465
+sender.encryption = "tls"
+sender.login = "$GMAIL_EMAIL"
+sender.auth.type = "oauth2"
+sender.auth.client-id = "$GMAIL_CLIENT_ID"
+sender.auth.client-secret = "$GMAIL_CLIENT_SECRET"
+sender.auth.method = "redirect"
+sender.auth.auth-url = "https://accounts.google.com/o/oauth2/auth"
+sender.auth.token-url = "https://oauth2.googleapis.com/token"
+sender.auth.scopes = ["https://mail.google.com/"]
+HIMALAYA
+        echo "Himalaya configured. Run: himalaya account configure gmail"
+    else
+        echo "Gmail OAuth credentials incomplete in Bitwarden"
+    fi
+else
+    echo "Himalaya config exists or devbox/gmail-oauth not in Bitwarden (optional)"
 fi
 
 echo "=== DONE ==="

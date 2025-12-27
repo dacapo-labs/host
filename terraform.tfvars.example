@@ -81,6 +81,21 @@ notification_emails = ["your-email@example.com"]
 #    - Type: Login (or Secure Note)
 #    - Custom field: "key_b64" = (base64-encoded git-crypt key)
 #
+# OPTIONAL (for email):
+#
+# 8. devbox/gmail-oauth
+#    - Type: Login
+#    - Username: your.email@gmail.com
+#    - Custom field: "client_id" = (Google OAuth client ID)
+#    - Custom field: "client_secret" = (Google OAuth client secret)
+#
+# To get Gmail OAuth credentials:
+#   1. Go to https://console.cloud.google.com/
+#   2. Create project → APIs & Services → Enable Gmail API
+#   3. Credentials → Create OAuth Client ID (Desktop app)
+#   4. Copy client ID and secret to Bitwarden
+#   5. After devbox-init, run: himalaya account configure gmail
+#
 # To get the git-crypt key:
 #   cd ~/.config/claude-sessions
 #   git-crypt export-key /dev/stdout | base64 -w0
