@@ -84,7 +84,7 @@ setup_system_packages() {
     apt-get install -y \
         zsh git git-crypt curl wget unzip jq htop tmux ripgrep fd-find bat ncdu \
         software-properties-common build-essential ca-certificates gnupg lsb-release \
-        fzf direnv cryptsetup eza \
+        fzf direnv cryptsetup eza mosh \
         unattended-upgrades apt-listchanges
 }
 
@@ -229,6 +229,63 @@ setup_cloud_clis() {
     fi
 
     return 0
+}
+
+setup_code_server() {
+    if command -v code-server &>/dev/null; then
+        log "code-server already installed"
+        return 0
+    fi
+
+    # Install code-server
+    curl -fsSL https://code-server.dev/install.sh | sh
+
+    # Create config directory
+    mkdir -p /home/ubuntu/.config/code-server
+
+    # Generate a random password and store it
+    CODE_SERVER_PASSWORD=$(openssl rand -base64 24)
+
+    # Config file - bind to localhost, use Tailscale for access
+    cat > /home/ubuntu/.config/code-server/config.yaml <<CODECONFIG
+bind-addr: 0.0.0.0:8080
+auth: password
+password: $CODE_SERVER_PASSWORD
+cert: false
+CODECONFIG
+
+    chown -R ubuntu:ubuntu /home/ubuntu/.config/code-server
+    chmod 600 /home/ubuntu/.config/code-server/config.yaml
+
+    # Create systemd service to run as ubuntu user
+    cat > /etc/systemd/system/code-server.service <<'CODESERVICE'
+[Unit]
+Description=code-server (VS Code in browser)
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+Environment=HOME=/home/ubuntu
+ExecStart=/usr/bin/code-server --config /home/ubuntu/.config/code-server/config.yaml /home/ubuntu
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+CODESERVICE
+
+    systemctl daemon-reload
+    systemctl enable --now code-server
+
+    # Save password to a file for easy retrieval
+    echo "$CODE_SERVER_PASSWORD" > /home/ubuntu/.config/code-server/password.txt
+    chmod 600 /home/ubuntu/.config/code-server/password.txt
+    chown ubuntu:ubuntu /home/ubuntu/.config/code-server/password.txt
+
+    log "code-server installed. Password: cat ~/.config/code-server/password.txt"
+    log "Access: http://devbox:8080 (via Tailscale)"
 }
 
 setup_system_config() {
@@ -543,10 +600,16 @@ setup_motd() {
   First time:  unlock && init
   Health check: check
 
+  Access Methods:
+    SSH:      ssh devbox           (standard)
+    Mosh:     mosh devbox          (resilient, mobile-friendly)
+    Browser:  http://devbox:8080   (VS Code - password in ~/.config/code-server/password.txt)
+
   Commands:
     unlock  - Authenticate with Bitwarden
     init    - Set up LUKS, SSH keys, configs
     check   - Verify all dependencies
+    status  - Show devbox status
 ================================================================================
 MOTD
 }
@@ -573,6 +636,7 @@ run_step "python" "Python" setup_python
 run_step "npm_packages" "NPM packages" setup_npm_packages
 run_step "modern_cli_tools" "Modern CLI tools" setup_modern_cli_tools
 run_step "cloud_clis" "Cloud CLIs" setup_cloud_clis
+run_step "code_server" "code-server (VS Code web)" setup_code_server
 run_step "system_config" "System config" setup_system_config
 run_step "git_delta" "Git delta config" setup_git_delta
 run_step "spot_watcher" "Spot watcher" setup_spot_watcher
