@@ -182,47 +182,44 @@ setup_git_identity() {
     log "=== Setting up git identity ==="
     mkdir -p ~/.config/git
 
-    local IDENTITY
-    IDENTITY=$(bw get item "devbox/identity" 2>/dev/null) || { log_error "devbox/identity not found in Bitwarden"; return 1; }
+    # Create template configs - actual values populated by LifeMaestro zones
+    # See: ~/code/lifemaestro/config.toml [zones.*.git]
 
-    local GIT_NAME_HOME GIT_EMAIL_HOME GIT_NAME_WORK GIT_EMAIL_WORK
-    GIT_NAME_HOME=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="git_name_home") | .value // empty')
-    GIT_EMAIL_HOME=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="git_email_home") | .value // empty')
-    GIT_NAME_WORK=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="git_name_work") | .value // empty')
-    GIT_EMAIL_WORK=$(echo "$IDENTITY" | jq -r '.fields[]? | select(.name=="git_email_work") | .value // empty')
-
-    if [[ -z "$GIT_NAME_HOME" || -z "$GIT_EMAIL_HOME" ]]; then
-        log_error "devbox/identity missing required fields (git_name_home, git_email_home)"
-        return 1
-    fi
-
-    # Home config
+    # Home config template
     if [[ ! -f ~/.config/git/config-home ]]; then
-        cat > ~/.config/git/config-home <<GH
+        cat > ~/.config/git/config-home <<'GH'
+# Git identity for personal/home context
+# Values populated by: zone switch personal
+# Or manually: git config --file ~/.config/git/config-home user.name "Your Name"
 [user]
-    name = $GIT_NAME_HOME
-    email = $GIT_EMAIL_HOME
+    # name = (set by LifeMaestro zone)
+    # email = (set by LifeMaestro zone)
 [url "git@github.com-home:"]
     insteadOf = git@github.com:
 GH
-        log "Git config-home created"
+        log "Git config-home template created"
     fi
 
-    # Work config
-    if [[ ! -f ~/.config/git/config-work ]] && [[ -n "$GIT_NAME_WORK" ]]; then
-        cat > ~/.config/git/config-work <<GW
+    # Work config template
+    if [[ ! -f ~/.config/git/config-work ]]; then
+        cat > ~/.config/git/config-work <<'GW'
+# Git identity for work context
+# Values populated by: zone switch work
+# Or manually: git config --file ~/.config/git/config-work user.name "Your Name"
 [user]
-    name = $GIT_NAME_WORK
-    email = $GIT_EMAIL_WORK
+    # name = (set by LifeMaestro zone)
+    # email = (set by LifeMaestro zone)
 [url "git@github.com-work:"]
     insteadOf = git@github.com:
 GW
-        log "Git config-work created"
+        log "Git config-work template created"
     fi
 
-    # Include configs
-    if ! grep -q "claude-sessions/home" ~/.gitconfig 2>/dev/null; then
+    # Include configs based on directory
+    if ! grep -q "includeIf" ~/.gitconfig 2>/dev/null; then
         cat >> ~/.gitconfig <<'GINC'
+# Directory-based git identity
+# Configs populated by LifeMaestro: zone switch <name>
 [includeIf "gitdir:~/claude-sessions/home/"]
     path = ~/.config/git/config-home
 [includeIf "gitdir:~/claude-sessions/work/"]
@@ -351,163 +348,16 @@ setup_lifemaestro() {
     fi
 }
 
-setup_himalaya() {
-    log "=== Setting up Himalaya (email) ==="
-    mkdir -p ~/.config/himalaya
-
-    if [[ -f ~/.config/himalaya/config.toml ]]; then
-        log "Himalaya config already exists"
-        return 0
-    fi
-
-    if ! bw get item "devbox/gmail-oauth" &>/dev/null; then
-        log "devbox/gmail-oauth not in Bitwarden (optional)"
-        return 0
-    fi
-
-    local GMAIL_EMAIL GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET
-    GMAIL_EMAIL=$(bw get item "devbox/gmail-oauth" | jq -r '.login.username // empty')
-    GMAIL_CLIENT_ID=$(bw get item "devbox/gmail-oauth" | jq -r '.fields[]? | select(.name=="client_id") | .value // empty')
-    GMAIL_CLIENT_SECRET=$(bw get item "devbox/gmail-oauth" | jq -r '.fields[]? | select(.name=="client_secret") | .value // empty')
-
-    if [[ -z "$GMAIL_EMAIL" || -z "$GMAIL_CLIENT_ID" || -z "$GMAIL_CLIENT_SECRET" ]]; then
-        log "Gmail OAuth credentials incomplete"
-        return 0
-    fi
-
-    cat > ~/.config/himalaya/config.toml <<HIMALAYA
-[accounts.gmail]
-default = true
-email = "$GMAIL_EMAIL"
-
-backend.type = "imap"
-backend.host = "imap.gmail.com"
-backend.port = 993
-backend.encryption = "tls"
-backend.login = "$GMAIL_EMAIL"
-backend.auth.type = "oauth2"
-backend.auth.client-id = "$GMAIL_CLIENT_ID"
-backend.auth.client-secret = "$GMAIL_CLIENT_SECRET"
-backend.auth.method = "redirect"
-backend.auth.auth-url = "https://accounts.google.com/o/oauth2/auth"
-backend.auth.token-url = "https://oauth2.googleapis.com/token"
-backend.auth.scopes = ["https://mail.google.com/"]
-
-sender.type = "smtp"
-sender.host = "smtp.gmail.com"
-sender.port = 465
-sender.encryption = "tls"
-sender.login = "$GMAIL_EMAIL"
-sender.auth.type = "oauth2"
-sender.auth.client-id = "$GMAIL_CLIENT_ID"
-sender.auth.client-secret = "$GMAIL_CLIENT_SECRET"
-sender.auth.method = "redirect"
-sender.auth.auth-url = "https://accounts.google.com/o/oauth2/auth"
-sender.auth.token-url = "https://oauth2.googleapis.com/token"
-sender.auth.scopes = ["https://mail.google.com/"]
-HIMALAYA
-    log "Himalaya configured. Run: himalaya account configure gmail"
-}
-
-setup_gcalcli() {
-    log "=== Setting up gcalcli (Google Calendar) ==="
-
-    if [[ -f ~/.gcalcli_oauth ]]; then
-        log "gcalcli config already exists"
-        return 0
-    fi
-
-    if ! bw get item "devbox/gmail-oauth" &>/dev/null; then
-        log "devbox/gmail-oauth not in Bitwarden (optional)"
-        return 0
-    fi
-
-    local GMAIL_CLIENT_ID GMAIL_CLIENT_SECRET
-    GMAIL_CLIENT_ID=$(bw get item "devbox/gmail-oauth" | jq -r '.fields[]? | select(.name=="client_id") | .value // empty')
-    GMAIL_CLIENT_SECRET=$(bw get item "devbox/gmail-oauth" | jq -r '.fields[]? | select(.name=="client_secret") | .value // empty')
-
-    if [[ -z "$GMAIL_CLIENT_ID" || -z "$GMAIL_CLIENT_SECRET" ]]; then
-        return 0
-    fi
-
-    cat > ~/.gcalcli_oauth <<GCALCLI
-{
-  "client_id": "$GMAIL_CLIENT_ID",
-  "client_secret": "$GMAIL_CLIENT_SECRET"
-}
-GCALCLI
-    chmod 600 ~/.gcalcli_oauth
-    log "gcalcli configured. Run: gcalcli init"
-}
-
-setup_ms365() {
-    log "=== Setting up MS365 (email + calendar) ==="
-
-    if ! bw get item "devbox/ms365-oauth" &>/dev/null; then
-        log "devbox/ms365-oauth not in Bitwarden (optional)"
-        return 0
-    fi
-
-    local MS365_EMAIL MS365_CLIENT_ID MS365_CLIENT_SECRET MS365_TENANT_ID
-    MS365_EMAIL=$(bw get item "devbox/ms365-oauth" | jq -r '.login.username // empty')
-    MS365_CLIENT_ID=$(bw get item "devbox/ms365-oauth" | jq -r '.fields[]? | select(.name=="client_id") | .value // empty')
-    MS365_CLIENT_SECRET=$(bw get item "devbox/ms365-oauth" | jq -r '.fields[]? | select(.name=="client_secret") | .value // empty')
-    MS365_TENANT_ID=$(bw get item "devbox/ms365-oauth" | jq -r '.fields[]? | select(.name=="tenant_id") | .value // empty')
-
-    if [[ -z "$MS365_EMAIL" || -z "$MS365_CLIENT_ID" || -z "$MS365_TENANT_ID" ]]; then
-        log "MS365 OAuth credentials incomplete"
-        return 0
-    fi
-
-    # Add MS365 to Himalaya if not present
-    if [[ -f ~/.config/himalaya/config.toml ]] && ! grep -q "accounts.ms365" ~/.config/himalaya/config.toml; then
-        cat >> ~/.config/himalaya/config.toml <<HIMALAYA_MS365
-
-[accounts.ms365]
-default = false
-email = "$MS365_EMAIL"
-
-backend.type = "imap"
-backend.host = "outlook.office365.com"
-backend.port = 993
-backend.encryption = "tls"
-backend.login = "$MS365_EMAIL"
-backend.auth.type = "oauth2"
-backend.auth.client-id = "$MS365_CLIENT_ID"
-backend.auth.client-secret = "$MS365_CLIENT_SECRET"
-backend.auth.method = "redirect"
-backend.auth.auth-url = "https://login.microsoftonline.com/$MS365_TENANT_ID/oauth2/v2.0/authorize"
-backend.auth.token-url = "https://login.microsoftonline.com/$MS365_TENANT_ID/oauth2/v2.0/token"
-backend.auth.scopes = ["https://outlook.office365.com/IMAP.AccessAsUser.All", "https://outlook.office365.com/SMTP.Send", "offline_access"]
-
-sender.type = "smtp"
-sender.host = "smtp.office365.com"
-sender.port = 587
-sender.encryption = "starttls"
-sender.login = "$MS365_EMAIL"
-sender.auth.type = "oauth2"
-sender.auth.client-id = "$MS365_CLIENT_ID"
-sender.auth.client-secret = "$MS365_CLIENT_SECRET"
-sender.auth.method = "redirect"
-sender.auth.auth-url = "https://login.microsoftonline.com/$MS365_TENANT_ID/oauth2/v2.0/authorize"
-sender.auth.token-url = "https://login.microsoftonline.com/$MS365_TENANT_ID/oauth2/v2.0/token"
-sender.auth.scopes = ["https://outlook.office365.com/IMAP.AccessAsUser.All", "https://outlook.office365.com/SMTP.Send", "offline_access"]
-HIMALAYA_MS365
-        log "Himalaya MS365 configured. Run: himalaya account configure ms365"
-    fi
-
-    # Thallo config
-    mkdir -p ~/.config/thallo
-    if [[ ! -f ~/.config/thallo/config.toml ]]; then
-        cat > ~/.config/thallo/config.toml <<THALLO
-[azure]
-client_id = "$MS365_CLIENT_ID"
-tenant_id = "$MS365_TENANT_ID"
-
-[calendar]
-default = "Calendar"
-THALLO
-        log "thallo configured. Run: thallo authorize"
+setup_mail_calendar() {
+    # Email/Calendar setup moved to LifeMaestro for better separation of concerns
+    # Run: ~/code/lifemaestro/adapters/mail/setup.sh
+    # Or after install: maestro setup mail
+    log "=== Email/Calendar Setup ==="
+    if [[ -f ~/code/lifemaestro/adapters/mail/setup.sh ]]; then
+        ~/code/lifemaestro/adapters/mail/setup.sh
+    else
+        log "Email/calendar setup deferred to LifeMaestro"
+        log "Run after install: ~/code/lifemaestro/adapters/mail/setup.sh"
     fi
 }
 
@@ -531,9 +381,7 @@ run_step "git_identity" "Git identity" setup_git_identity
 run_step "aws_config" "AWS config" setup_aws_config
 run_step "claude_sessions" "Claude sessions" setup_claude_sessions
 run_step "lifemaestro" "LifeMaestro" setup_lifemaestro
-run_step "himalaya" "Himalaya email" setup_himalaya
-run_step "gcalcli" "gcalcli calendar" setup_gcalcli
-run_step "ms365" "MS365 email/calendar" setup_ms365
+run_step "mail_calendar" "Email/Calendar (via LifeMaestro)" setup_mail_calendar
 
 # Summary
 log "=== Devbox Init Complete ==="
@@ -547,5 +395,6 @@ fi
 log ""
 log "Next steps:"
 log "  aws sso login --profile home"
+log "  zone switch personal   # Apply git identity from LifeMaestro"
 [[ -f ~/.config/himalaya/config.toml ]] && log "  himalaya account configure gmail"
 [[ -f ~/.gcalcli_oauth ]] && log "  gcalcli init"
