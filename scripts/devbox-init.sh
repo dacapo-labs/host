@@ -361,6 +361,27 @@ setup_mail_calendar() {
     fi
 }
 
+setup_keepalive() {
+    # Start LifeMaestro credential keepalive daemon
+    # Monitors and refreshes AWS SSO, OAuth tokens
+    log "=== Starting credential keepalive ==="
+
+    if [[ -f ~/code/lifemaestro/bin/creds ]]; then
+        # Check if already running
+        if pgrep -f "keepalive.sh" >/dev/null 2>&1; then
+            log "Keepalive already running"
+            return 0
+        fi
+
+        # Start the keepalive daemon
+        ~/code/lifemaestro/bin/creds start
+        log "Credential keepalive started"
+        log "Check status: creds status"
+    else
+        log "LifeMaestro creds not available (optional)"
+    fi
+}
+
 # =============================================================================
 # Main Execution
 # =============================================================================
@@ -382,6 +403,7 @@ run_step "aws_config" "AWS config" setup_aws_config
 run_step "claude_sessions" "Claude sessions" setup_claude_sessions
 run_step "lifemaestro" "LifeMaestro" setup_lifemaestro
 run_step "mail_calendar" "Email/Calendar (via LifeMaestro)" setup_mail_calendar
+run_step "keepalive" "Credential keepalive" setup_keepalive
 
 # Summary
 log "=== Devbox Init Complete ==="
