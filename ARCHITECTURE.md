@@ -172,3 +172,15 @@ Guardrails are evaluated at session scope:
 **Dry Run Integration** - Before any destructive action, the session generates a preview. In interactive sessions, the preview is shown immediately. In agent sessions, the preview is logged and the action waits for approval unless pre-authorized.
 
 **Session Audit** - Complete session history is retained. Every model call, tool execution, decision point, and outcome. Sessions can be replayed for debugging or review. Audit logs are append-only and tamper-evident.
+
+## Logging
+
+Following "Code Before Prompts," logging leverages LiteLLM's built-in observability rather than reinventing it.
+
+**LiteLLM Handles** - Model calls, input/output, token counts, cost per request, latency, provider tracking, success/failure events, streaming events. LiteLLM normalizes this across all providers and integrates with observability platforms like Langfuse, Datadog, and PostHog.
+
+**Session Layer Adds** - Tool executions with parameters and results. Session lifecycle events including start, pause, resume, and end. Guardrail decisions showing action classification, approvals, and denials. Dry run previews generated. Skill invocations with source and outcome. Zone transitions. Approval requests and responses.
+
+**Log Structure** - Each session writes to its own log file. Model call logs flow through LiteLLM callbacks. Session events append to session-specific logs. All logs include timestamps, session ID, and zone context. Logs are append-only for tamper evidence.
+
+**Sensitive Data** - Credentials and secrets are never logged. Input content can be hashed instead of stored verbatim when privacy is required. LiteLLM supports redaction for API keys. Zone configuration determines logging verbosity.
