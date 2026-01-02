@@ -73,3 +73,13 @@ Derived from PAI's 15 founding principles:
 8. **Configuration Over Code** - YAML and Markdown define behavior; code executes
 9. **Persistent Context** - Capture everything worth knowing for future reference
 10. **Self-Updating Systems** - Infrastructure that improves through use
+
+## Zero Friction
+
+The system eliminates barriers between intent and action. Resources are always available, authentication is invisible, and manual intervention is avoided.
+
+**Always Available** - The host runs continuously. Tailscale provides instant access from any device. Credentials are cached and refreshed automatically. There is no startup time, no login ritual, no waiting.
+
+**Invisible Authentication** - Bitwarden supplies secrets on demand. CLIProxyAPI maintains OAuth sessions. LiteLLM routes to whichever provider is authenticated. The user never types a password or refreshes a token during normal operation.
+
+**No User Interaction** - Workflows run to completion without prompts or confirmations. Skills define all parameters upfront. Scripts handle errors and retry automatically. Human attention is reserved for decisions that require judgment, not for babysitting processes.
