@@ -42,6 +42,10 @@ A single call can query Gemini through your Google subscription, Claude through 
 
 ## Skills Architecture
 
+**Model Agnostic** - Skills are written to work with any model. The prompt content does not assume a specific provider. Model selection happens at runtime through LiteLLM routing, not within the skill itself. This allows the same skill to run on Claude, GPT, Gemini, or any other model without modification.
+
+**Cross-Platform Compatibility** - Major AI platforms have adopted the skills pattern but use different filenames. Claude uses CLAUDE.md, Codex uses AGENTS.md, Gemini uses GEMINI.md. The underlying format is similar. SkillsMP normalizes these differences, allowing skills from any source to be discovered and used regardless of original naming convention.
+
 **Local Skills** - Personal prompts and workflows in ~/skills organized by domain. Version controlled. Continuously refined.
 
 **SkillsMP Cache** - Cached index of marketplace skills with search, scoring, and metadata. Skills are evaluated by author trust, community rating, and relevance before use.
