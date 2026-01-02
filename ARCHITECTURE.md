@@ -50,7 +50,53 @@ A single call can query Gemini through your Google subscription, Claude through 
 
 **SkillsMP Cache** - Cached index of marketplace skills with search, scoring, and metadata. Skills are evaluated by author trust, community rating, and relevance before use.
 
-**Skill Format** - Each skill is a markdown file with frontmatter defining model preferences, temperature, and parameters, followed by the prompt template. Skills compose with other skills.
+## Skill Format
+
+Adopts the Agent Skills open standard from agentskills.io with Fabric pattern conventions for the body.
+
+**Directory Structure:**
+```
+skill-name/
+├── SKILL.md              # Required - metadata and instructions
+├── scripts/              # Optional - automation scripts
+├── references/           # Optional - context documents
+└── assets/               # Optional - supporting files
+```
+
+**SKILL.md Format:**
+```yaml
+---
+name: summarize                    # Required: 1-64 chars, lowercase, hyphens only
+description: |                     # Required: 1-1024 chars
+  Summarize any content into key points with actionable takeaways
+license: MIT                       # Optional: license name or file reference
+compatibility: claude, gpt, gemini # Optional: tested models
+allowed-tools: read_file           # Optional: pre-approved tools for this skill
+metadata:
+  scope: read-only                 # read-only | reversible | destructive
+  temperature: 0.3                 # model parameter defaults
+  max_tokens: 2000
+  tags: [writing, analysis]
+---
+
+# IDENTITY and PURPOSE
+
+You are an expert content summarizer...
+
+# STEPS
+
+1. Read the input content carefully
+2. Identify the main themes...
+
+# OUTPUT INSTRUCTIONS
+
+- Use markdown formatting
+- Keep summary under 500 words...
+```
+
+**Scope Declaration** - Every skill declares its scope in metadata. The agent loop enforces this. If a skill with read-only scope attempts to call a destructive tool, the action is blocked.
+
+**Tool Permissions** - The allowed-tools field lists tools the skill may use. Tools not listed are blocked. This provides defense in depth beyond scope classification.
 
 ## Skill Sources
 
@@ -72,15 +118,28 @@ The system draws from established skill libraries rather than reinventing prompt
 
 ```
 ~/
-├── .config/litellm/config.yaml   # Model routing
-├── .config/zones/                # Zone configurations
+├── .config/
+│   ├── litellm/config.yaml       # Model routing
+│   └── zones/                    # Zone configurations
+│       ├── work/CLAUDE.md
+│       ├── personal/CLAUDE.md
+│       └── projects/*/CLAUDE.md
 ├── bin/                          # CLI tools and scripts
 ├── skills/                       # Local skill library
-├── log/                          # Daily notes and outputs
+│   └── skill-name/
+│       ├── SKILL.md              # Required
+│       ├── scripts/              # Optional
+│       └── references/           # Optional
 ├── sessions/                     # Session state and history
-│   ├── active/                   # Currently running sessions
-│   ├── paused/                   # Suspended sessions
-│   └── archive/                  # Completed sessions
+│   ├── active/                   # Currently running
+│   │   └── {id}/
+│   │       ├── meta.json
+│   │       ├── context.json
+│   │       ├── log.jsonl
+│   │       └── state.json
+│   ├── paused/                   # Suspended
+│   └── archive/                  # Completed
+├── log/                          # Daily notes and outputs
 └── .cache/skillsmp/              # Marketplace skill cache
 ```
 
@@ -131,6 +190,60 @@ Sessions are compositional. Zone provides the foundation. Work and Agent session
 
 **Zone Session** - The context layer. Provides credentials scope, guardrail settings, model preferences, and permission boundaries. Work zone, personal zone, project-specific zones. Switching zones switches context entirely. No bleed between domains.
 
+## Zone Configuration
+
+Zones adopt CLAUDE.md conventions. Each zone is a directory containing a CLAUDE.md file with zone-specific context and settings.
+
+**Directory Structure:**
+```
+~/.config/zones/
+├── work/
+│   ├── CLAUDE.md           # Zone context and rules
+│   └── @imports/           # Shared config fragments
+├── personal/
+│   └── CLAUDE.md
+└── projects/
+    └── client-a/
+        └── CLAUDE.md
+```
+
+**Zone CLAUDE.md Format:**
+```markdown
+# Work Zone
+
+## Purpose
+Corporate development work for Acme Corp.
+
+## Credentials
+- AWS Profile: work-account
+- Bitwarden Folder: work
+
+## Guardrails
+- destructive: require-approval
+- reversible: log-only
+- read-only: allow
+
+## Model Preferences
+- Default: claude-3-opus
+- Fast: claude-3-haiku
+- Code: claude-3-opus
+
+## Allowed Skills
+@imports/standard-skills.md
+
+## Blocked Skills
+- personal/*
+- experimental/*
+
+## Notifications
+- approval-channel: slack
+- alert-channel: email
+```
+
+**Zone Discovery** - Zones are discovered recursively from ~/.config/zones. Nested zones inherit from parents and can override settings.
+
+**Zone Switching** - Active zone is set via environment variable or command. All sessions within a zone inherit its context. Switching zones switches credentials, permissions, and model preferences entirely.
+
 **Model Session** - Conversation memory within a zone. Prior exchanges inform current responses. Context is persisted to disk and reloaded on resume. Token limits are managed by summarization or sliding window. Model sessions are contained within work or agent sessions.
 
 **Work Session** - Human-driven activity within a zone. Starting a session creates a boundary. Everything within it shares state, history, and logging. Contains one or more model sessions. Stop the session and context is saved. Resume later and pick up where you left off.
@@ -161,6 +274,68 @@ The agent loop is intentionally simple. No framework, no complex orchestration. 
 
 **End** - Session completes. Final state is logged. Summary is generated. Artifacts are indexed for future reference.
 
+## Session State Format
+
+Each session is stored as a directory with structured files.
+
+**Session Directory:**
+```
+~/sessions/active/abc123/
+├── meta.json           # Session metadata
+├── context.json        # Model conversation memory
+├── log.jsonl           # Append-only event log
+└── state.json          # Current working state
+```
+
+**meta.json:**
+```json
+{
+  "id": "abc123",
+  "type": "work",
+  "zone": "personal",
+  "started": "2025-01-02T10:30:00Z",
+  "status": "active",
+  "skill": "code-review",
+  "goal": "Review PR #42"
+}
+```
+
+**log.jsonl:** (append-only, one JSON object per line)
+```json
+{"ts": "2025-01-02T10:30:01Z", "event": "session_start", "zone": "personal"}
+{"ts": "2025-01-02T10:30:05Z", "event": "skill_invoke", "skill": "code-review"}
+{"ts": "2025-01-02T10:30:10Z", "event": "tool_exec", "tool": "read_file", "params": {"path": "/src/main.py"}, "result": "success"}
+{"ts": "2025-01-02T10:31:00Z", "event": "guardrail", "action": "write_file", "classification": "reversible", "decision": "allow"}
+```
+
+**context.json:** Model conversation memory using sliding window. Last N messages retained. Older messages summarized or dropped based on zone token settings.
+
+**state.json:** Skill-specific working state. Contents vary by skill. Serialized on pause, restored on resume.
+
+## Token Management
+
+Model sessions use sliding window by default. Configurable per zone.
+
+**Sliding Window (Default):**
+- Retain last N messages (default: 20)
+- Drop oldest messages when limit exceeded
+- Simple, predictable, no summarization latency
+
+**Summarization (Optional):**
+- When context exceeds threshold, summarize older messages
+- Summary replaces original messages
+- Preserves more context at cost of latency
+- Enable per zone: `token_management: summarize`
+
+**Token Limits:**
+```markdown
+## Token Settings
+- context_limit: 20000          # Max tokens before management kicks in
+- sliding_window_messages: 20   # Messages to retain in sliding window
+- summarize_threshold: 15000    # Trigger summarization at this level
+- summarize_target: 5000        # Compress to this size
+```
+
 ## Session Guardrails
 
 Guardrails are evaluated at session scope:
@@ -168,6 +343,28 @@ Guardrails are evaluated at session scope:
 **Inherited Permissions** - Sessions inherit the guardrail settings of their zone. A work zone may permit more autonomous action than a personal zone. A high-trust project zone may allow destructive actions that a new project zone would block.
 
 **Escalation Path** - When an action exceeds session permissions, the session pauses and requests approval. Approval can come interactively or via configured notification channel. Denied actions are logged and the session continues with alternative approach.
+
+## Notification Channels
+
+Approval requests and alerts are delivered through configured channels. Zones specify which channels to use.
+
+**Supported Channels:**
+- **stdout** - Interactive terminal prompt. Used for work sessions with attached terminal.
+- **file** - Write to approval queue file. Check manually when convenient.
+- **ntfy** - Push notification via ntfy.sh. Mobile-friendly, self-hostable.
+- **pushover** - Push notification via Pushover. Mobile apps for iOS/Android.
+- **slack** - Message to Slack channel or DM. Good for work zones.
+- **email** - Email notification. Good for non-urgent approvals.
+- **sms** - SMS via Twilio. Good for urgent approvals.
+
+**Approval Flow:**
+1. Agent session encounters destructive action
+2. Dry run preview is generated and logged
+3. Notification sent to configured channel with preview and approve/deny options
+4. Session waits for response (with configurable timeout)
+5. On approval: action executes, logged with approver
+6. On denial: action skipped, session continues with alternative
+7. On timeout: action skipped, session logs timeout
 
 **Dry Run Integration** - Before any destructive action, the session generates a preview. In interactive sessions, the preview is shown immediately. In agent sessions, the preview is logged and the action waits for approval unless pre-authorized.
 
