@@ -244,6 +244,10 @@ The system draws from established skill libraries rather than reinventing prompt
 ~/
 ├── .config/
 │   ├── litellm/config.yaml       # Model routing
+│   ├── telos/                    # Structured self-knowledge
+│   │   ├── identity.md           # Who you are
+│   │   ├── values.md             # What you prioritize
+│   │   └── goals.md              # What you're working toward
 │   └── zones/                    # Zone configurations
 │       ├── work/CLAUDE.md
 │       ├── personal/CLAUDE.md
@@ -266,6 +270,18 @@ The system draws from established skill libraries rather than reinventing prompt
 ├── log/                          # Daily notes and outputs
 └── .cache/skillsmp/              # Marketplace skill cache
 ```
+
+## TELOS
+
+Structured self-knowledge that agents reference for context about you. Based on Daniel Miessler's TELOS framework. Gives agents understanding of your identity, values, and goals beyond task-specific instructions.
+
+**identity.md** - Who you are. Background, expertise, roles, preferences. Agents use this to calibrate responses.
+
+**values.md** - What you prioritize. Principles that guide decisions. Agents reference this when making tradeoffs.
+
+**goals.md** - What you're working toward. Short and long-term objectives. Agents align suggestions with these.
+
+Agents read TELOS once at session start. Zone config can override or extend for context-specific values.
 
 ## Principles
 
