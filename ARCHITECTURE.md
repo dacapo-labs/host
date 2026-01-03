@@ -354,14 +354,10 @@ trigger:
 1. Researcher (external) detects updates → writes to `~/log/updates-available.md`
 2. Updater agent reads available updates
 3. For each update: dry run → report impact → await approval
-4. Apply approved updates
+4. Apply approved updates only
 5. Verify success, rollback on failure
 
-**Scope Classification:**
-- GitHub repos: reversible (git reset)
-- System packages: reversible (package manager rollback)
-- Skills: reversible (version pinning)
-- Breaking changes: destructive (require explicit approval)
+**All updates require approval. No automatic application.**
 
 ## Principles
 
