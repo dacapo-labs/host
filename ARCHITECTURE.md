@@ -127,6 +127,101 @@ Spawns 5 parallel researcher invocations, each targeting one company. Results ar
 
 **Scope:** Inherits from base skill. If base skill is read-only, swarm is read-only.
 
+### Meta-Prompt
+
+Generates optimized prompts dynamically based on task analysis. Rather than using static prompts, meta-prompt analyzes the request and constructs a context-aware prompt.
+
+**Use cases:**
+- Transform vague requests into precise prompts
+- Inject relevant context automatically
+- Adapt prompts to specific models
+- Improve prompt quality iteratively
+
+**How it works:**
+1. Receive task description and context
+2. Analyze task requirements and constraints
+3. Select appropriate prompt structure
+4. Inject zone context, preferences, and history
+5. Generate optimized prompt for target model
+
+**Example:**
+```
+Input: "summarize this article"
+Meta-Prompt generates:
+  "You are an expert content analyst specializing in extracting
+   actionable insights. Given the following article, identify the
+   thesis, three key supporting arguments, and practical takeaways.
+   Format as bullet points under 200 words. Article: {content}"
+```
+
+**Context injection includes:**
+- Zone preferences (output format, verbosity)
+- Session history (prior conversation)
+- Model capabilities (what this model does well)
+- User patterns (learned preferences)
+
+**Scope:** Read-only. Generates prompts, does not execute them.
+
+### Chain
+
+Decomposes complex requests into a sequence of skills executed in order. Output from each skill feeds into the next.
+
+**Use cases:**
+- Multi-step workflows
+- Research → analysis → report pipelines
+- Data gathering → processing → output
+- Any task requiring ordered steps
+
+**How it works:**
+1. Receive complex task description
+2. Decompose into ordered skill sequence
+3. Execute skills sequentially
+4. Pass output from each to the next
+5. Return final result
+
+**Example:**
+```
+chain --task "research competitors and write summary report"
+```
+
+Decomposes to:
+1. researcher skill → gather competitor data
+2. analyzer skill → compare and contrast
+3. writer skill → produce formatted report
+
+**Scope:** Inherits highest scope from chain. If any skill is destructive, chain is destructive.
+
+### Refine
+
+Iteratively improves output through self-critique. Generates draft, critiques it, then produces improved version.
+
+**Use cases:**
+- High-quality writing
+- Code review and improvement
+- Analysis refinement
+- Any output benefiting from iteration
+
+**How it works:**
+1. Generate initial draft using base skill
+2. Critique draft against quality criteria
+3. Identify specific improvements
+4. Generate refined version
+5. Optionally repeat for N iterations
+
+**Example:**
+```
+refine --skill writer --iterations 2 --criteria "clarity,accuracy,conciseness"
+```
+
+**Quality criteria options:**
+- clarity: Is it easy to understand?
+- accuracy: Is it factually correct?
+- conciseness: Is it appropriately brief?
+- completeness: Does it cover all aspects?
+- actionability: Can the reader act on it?
+
+**Scope:** Inherits from base skill.
+
 ## Skill Sources
 
 The system draws from established skill libraries rather than reinventing prompts. Community-maintained and vendor-published skills provide tested, refined patterns.
