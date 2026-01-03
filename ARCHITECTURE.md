@@ -381,3 +381,86 @@ Following "Code Before Prompts," logging leverages LiteLLM's built-in observabil
 **Log Structure** - Each session writes to its own log file. Model call logs flow through LiteLLM callbacks. Session events append to session-specific logs. All logs include timestamps, session ID, and zone context. Logs are append-only for tamper evidence.
 
 **Sensitive Data** - Credentials and secrets are never logged. Input content can be hashed instead of stored verbatim when privacy is required. LiteLLM supports redaction for API keys. Zone configuration determines logging verbosity.
+
+## Scheduled Agents
+
+Two agent sessions run daily to maintain and improve the system. Both operate within guardrails and produce reports for human review before any changes are applied.
+
+### Researcher Agent
+
+Runs daily to discover improvements from the AI ecosystem.
+
+**Goal:** Find new developments in AI tooling, prompting techniques, model capabilities, and agent patterns that could benefit the system.
+
+**Sources:**
+- PAI repository updates and discussions
+- Agent Skills registry for new skills
+- Fabric patterns for new prompts
+- Model provider changelogs and documentation
+- AI research and tooling communities
+
+**Output:** Research report saved to ~/log/researcher/{date}.md containing:
+- New techniques discovered
+- Relevant new skills or patterns
+- Model capability updates
+- Suggested improvements with rationale
+- Links to sources
+
+**Scope:** Read-only. The researcher gathers and reports. It does not modify the system.
+
+**Schedule:** Daily, off-peak hours.
+
+### Healer Agent
+
+Runs daily to maintain system health and evaluate improvements.
+
+**Goal:** Review system state, identify issues, and assess whether researcher findings should be integrated while maintaining PAI principles.
+
+**Inputs:**
+- Session logs from past 24 hours
+- Error logs and failures
+- Guardrail denials and escalations
+- Latest researcher report
+
+**Analysis:**
+- Identify recurring errors or failures
+- Detect guardrail patterns suggesting misconfiguration
+- Evaluate researcher suggestions against PAI principles
+- Check for skill or zone configuration issues
+- Assess resource usage and performance
+
+**Output:** Health report saved to ~/log/healer/{date}.md containing:
+- System health summary
+- Issues identified with severity
+- Proposed fixes with dry run previews
+- Researcher suggestions evaluated (accept/reject with reasoning)
+- Alignment check against PAI principles
+
+**Scope:** Read-only for analysis. Any proposed changes are written as dry run previews requiring human approval before execution.
+
+**Schedule:** Daily, after researcher completes.
+
+### Agent Interaction
+
+The healer consumes researcher output but does not act autonomously on suggestions. Both agents produce reports. A human reviews the reports and approves specific actions. This maintains the guardrail principle: destructive or system-modifying actions require explicit approval.
+
+**Workflow:**
+1. Researcher runs, produces ~/log/researcher/{date}.md
+2. Healer runs, reads researcher report and system logs
+3. Healer produces ~/log/healer/{date}.md with proposed actions
+4. Human reviews healer report
+5. Human approves specific proposals
+6. Approved changes execute with full logging
+
+**Self-Improvement Loop:**
+```
+OBSERVE: Researcher scans ecosystem, Healer scans logs
+THINK: Healer evaluates findings against principles
+PLAN: Healer proposes specific changes
+BUILD: Dry run previews generated
+EXECUTE: Human-approved changes only
+VERIFY: Next day's healer checks if changes improved system
+LEARN: Patterns added to researcher/healer skills
+```
+
+This implements PAI principle #10 (Self-Updating Systems) while respecting guardrails and human oversight.
